@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abuja YSA Lugbe Ward 2 — Attendance Tracker</title>
+<style>
+  :root {
+    --bg: #0f0c1a; --surface: #1a1528; --card: #221c35; --border: #2e2548;
+    --purple: #6c3fc5; --gold: #d4a843; --gold-lt: #f0c96a; --text: #e8e0f5;
+    --muted: #8b7faa; --success: #4caf7d; --error: #e05c5c; --pending: #e08c30;
+    --radius: 10px; --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; z-index: 10; }
+  .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .sidebar-logo h1 { font-size: 13px; font-weight: 700; color: var(--gold); letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.4; }
+  .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 14px; color: var(--muted); border-left: 3px solid transparent; transition: all 0.15s; }
+  .nav-item:hover { color: var(--text); background: rgba(108,63,197,0.1); }
+  .nav-item.active { color: var(--gold); border-left-color: var(--gold); background: rgba(212,168,67,0.08); }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .user-pill { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .user-avatar { width: 32px; height: 32px; background: linear-gradient(135deg, var(--purple), var(--gold)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: white; flex-shrink: 0; }
+  .user-pill-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-pill-role { font-size: 11px; color: var(--gold); text-transform: capitalize; }
+  .main { margin-left: 240px; flex: 1; padding: 32px; }
+  .auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
+  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; box-shadow: var(--shadow); }
+  .auth-title { font-size: 22px; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+  .auth-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; font-family: inherit; transition: border-color 0.15s; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--purple); }
+  select option { background: var(--card); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: all 0.15s; }
+  .btn-primary { background: linear-gradient(135deg, var(--purple), #9a6de8); color: white; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-lt)); color: #1a1000; }
+  .btn-gold:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--purple); color: var(--text); }
+  .btn-danger { background: rgba(224,92,92,0.15); border: 1px solid rgba(224,92,92,0.3); color: var(--error); }
+  .btn-danger:hover { background: rgba(224,92,92,0.25); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-full { width: 100%; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .stat-value { font-size: 32px; font-weight: 700; line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-purple .stat-value { color: #9a6de8; }
+  .stat-gold .stat-value { color: var(--gold); }
+  .stat-green .stat-value { color: var(--success); }
+  .stat-orange .stat-value { color: var(--pending); }
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 22px; font-weight: 700; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--surface); padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(108,63,197,0.06); }
+  tbody td { padding: 12px 16px; color: var(--text); }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(76,175,125,0.15); color: var(--success); }
+  .badge-orange { background: rgba(224,140,48,0.15); color: var(--pending); }
+  .badge-purple { background: rgba(108,63,197,0.2); color: #9a6de8; }
+  .alert { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
+  .alert-error { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); color: var(--error); }
+  .alert-success { background: rgba(76,175,125,0.1); border: 1px solid rgba(76,175,125,0.3); color: var(--success); }
+  .alert-info { background: rgba(108,63,197,0.1); border: 1px solid rgba(108,63,197,0.3); color: #9a6de8; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab { padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); transition: all 0.15s; border: 1px solid transparent; }
+  .tab.active { background: rgba(108,63,197,0.2); color: #9a6de8; border-color: rgba(108,63,197,0.3); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .divider { margin: 8px 0; border: none; border-top: 1px solid var(--border); }
+  .upload-area { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px; text-align: center; cursor: pointer; transition: border-color 0.15s; }
+  .upload-area:hover { border-color: var(--purple); }
+  .upload-area input[type=file] { display: none; }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .hidden { display: none !important; }
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .actions-row { display: flex; gap: 8px; }
+  #toast { position: fixed; bottom: 24px; right: 24px; z-index: 1000; padding: 12px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 600; max-width: 340px; transform: translateY(80px); opacity: 0; transition: all 0.3s; pointer-events: none; }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  @media (max-width: 768px) {
+    .sidebar { width: 56px; }
+    .sidebar-logo, .nav-item span, .user-pill-info { display: none; }
+    .nav-item { justify-content: center; padding: 12px; }
+    .main { margin-left: 56px; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-box">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:40px;">⛪</div>
+      <div class="auth-title">Lugbe Ward 2</div>
+      <div class="auth-subtitle">Abuja YSA Attendance Tracking System</div>
+    </div>
+    <div class="tabs" style="justify-content:center">
+      <div class="tab active" onclick="switchAuthTab('login')">Sign In</div>
+      <div class="tab" onclick="switchAuthTab('signup')">Sign Up</div>
+    </div>
+    <div id="loginForm">
+      <div id="loginError"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">Sign In</button>
+    </div>
+    <div id="signupForm" class="hidden">
+      <div id="signupError"></div>
+      <div class="form-group"><label>Full Name</label><input type="text" id="signupName" placeholder="Your full name"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="signupEmail" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="signupPassword" placeholder="Min. 6 characters"></div>
+      <button class="btn btn-gold btn-full" onclick="doSignup()">Create Account</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center;">A representative will verify your account after signup.</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="app hidden">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Lugbe Ward 2<br>YSA</h1>
+      <p>Attendance Tracker</p>
+    </div>
+    <div id="navMember">
+      <div class="nav-item active" onclick="showPage('attendance')" data-page="attendance"><span class="icon">✅</span><span>Mark Attendance</span></div>
+      <div class="nav-item" onclick="showPage('myRecords')" data-page="myRecords"><span class="icon">📋</span><span>My Records</span></div>
+    </div>
+    <div id="navRep" class="hidden">
+      <hr class="divider">
+      <div style="padding:4px 20px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Rep Tools</div>
+      <div class="nav-item" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></div>
+      <div class="nav-item" onclick="showPage('approvals')" data-page="approvals">
+        <span class="icon">🔔</span><span>Approvals</span>
+        <span id="pendingBadge" class="badge badge-orange hidden" style="margin-left:auto;font-size:10px"></span>
+      </div>
+      <div class="nav-item" onclick="showPage('members')" data-page="members"><span class="icon">👥</span><span>Members</span></div>
+      <div class="nav-item" onclick="showPage('import')" data-page="import"><span class="icon">📥</span><span>Import Excel</span></div>
+      <div class="nav-item" onclick="exportExcel()"><span class="icon">📤</span><span>Export Excel</span></div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div>
+          <div class="user-pill-name" id="sidebarName">—</div>
+          <div class="user-pill-role" id="sidebarRole">member</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" style="margin-top:10px;font-size:12px" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Pages -->
+  <main class="main">
+
+    <!-- Mark Attendance -->
+    <div id="page-attendance" class="hidden">
+      <div class="page-header"><div class="page-title">Mark Attendance</div><div class="page-sub">Record your attendance for an event</div></div>
+      <div id="notVerifiedWarning" class="alert alert-info hidden">⏳ Your account is pending verification. You can mark attendance once a rep verifies you.</div>
+      <div style="max-width:480px;">
+        <div id="attendanceAlert"></div>
+        <div class="form-group"><label>Event Type</label><select id="attEventType"><option value="">— Select event —</option></select></div>
+        <div class="form-group"><label>Date</label><input type="date" id="attDate"></div>
+        <div class="form-group"><label>Notes (optional)</label><textarea id="attNotes" placeholder="Any notes..." rows="3"></textarea></div>
+        <button class="btn btn-primary" onclick="submitAttendance()" id="submitAttBtn">Record Attendance</button>
+      </div>
+    </div>
+
+    <!-- My Records -->
+    <div id="page-myRecords" class="hidden">
+      <div class="page-header"><div class="page-title">My Attendance Records</div><div class="page-sub">All your recorded attendance</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Event Type</th><th>Date</th><th>Notes</th><th>Status</th></tr></thead>
+          <tbody id="myRecordsBody"><tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div>No records yet.</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="hidden">
+      <div class="page-header"><div class="page-title">Dashboard</div><div class="page-sub">Ward attendance overview</div></div>
+      <div class="stats-grid">
+        <div class="stat-card stat-purple"><div class="stat-value" id="statMembers">—</div><div class="stat-label">Total Members</div></div>
+        <div class="stat-card stat-green"><div class="stat-value" id="statVerified">—</div><div class="stat-label">Verified</div></div>
+        <div class="stat-card stat-gold"><div class="stat-value" id="statApproved">—</div><div class="stat-label">Approved</div></div>
+        <div class="stat-card stat-orange"><div class="stat-value" id="statPending">—</div><div class="stat-label">Pending</div></div>
+      </div>
+      <div class="section-header"><div class="section-title">Attendance by Event</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Event Type</th><th>Approved Records</th></tr></thead>
+          <tbody id="eventBreakdownBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Approvals -->
+    <div id="page-approvals" class="hidden">
+      <div class="page-header"><div class="page-title">Pending Approvals</div><div class="page-sub">Review and approve member attendance</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Member</th><th>Event</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="approvalsBody"><tr><td colspan="5"><div class="empty-state"><div class="icon">🎉</div>No pending approvals.</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div id="page-members" class="hidden">
+      <div class="page-header"><div class="page-title">Members</div><div class="page-sub">Manage ward members</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="membersBody"><tr><td colspan="5"><div class="empty-state"><div class="icon">👥</div>No members yet.</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Import Excel -->
+    <div id="page-import" class="hidden">
+      <div class="page-header"><div class="page-title">Import from Excel</div><div class="page-sub">Upload your Microsoft Forms Excel export</div></div>
+      <div style="max-width:520px;">
+        <div id="importAlert"></div>
+        <div class="upload-area" onclick="document.getElementById('excelFile').click()">
+          <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+          <div class="upload-icon">📊</div>
+          <div style="font-weight:600;margin-bottom:4px">Click to upload Excel file</div>
+          <div style="font-size:12px;color:var(--muted)">.xlsx or .xls files only</div>
+          <div id="selectedFileName" style="margin-top:12px;font-size:13px;color:var(--gold)"></div>
+        </div>
+        <div style="margin-top:16px;padding:16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);font-size:13px;color:var(--muted)">
+          <strong style="color:var(--text)">Required columns:</strong>
+          <code style="margin-left:6px;color:var(--gold)">Name</code>
+          <code style="margin-left:6px;color:var(--gold)">Email</code>
+          <code style="margin-left:6px;color:var(--gold)">Event Type</code>
+          <code style="margin-left:6px;color:var(--gold)">Date:</code>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="uploadExcel()" id="uploadBtn" disabled>📥 Import Data</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+let currentUser = null;
+let selectedFile = null;
+
+async function api(method, path, body = null, isForm = false) {
+  const opts = { method, headers: isForm ? {} : {'Content-Type':'application/json'}, body: body ? (isForm ? body : JSON.stringify(body)) : null };
+  const res = await fetch(`${API}${path}`, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = type === 'success' ? '#4caf7d' : type === 'error' ? '#e05c5c' : '#6c3fc5';
+  el.style.color = 'white';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function showAlert(id, msg, type = 'error') {
+  document.getElementById(id).innerHTML = msg ? `<div class="alert alert-${type}">${msg}</div>` : '';
+}
+
+function fmt(d) {
+  try { return new Date(d).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}); } catch { return d; }
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-box .tab').forEach((t,i) => t.classList.toggle('active', i === (tab==='login'?0:1)));
+  document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) { showAlert('loginError','Please fill in all fields.'); return; }
+  try { startSession(await api('POST','/login',{email,password})); }
+  catch(e) { showAlert('loginError', e.message); }
+}
+
+async function doSignup() {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  if (!name || !email || !password) { showAlert('signupError','Please fill in all fields.'); return; }
+  if (password.length < 6) { showAlert('signupError','Password must be at least 6 characters.'); return; }
+  try { startSession(await api('POST','/signup',{name,email,password})); }
+  catch(e) { showAlert('signupError', e.message); }
+}
+
+function startSession(user) {
+  currentUser = user;
+  sessionStorage.setItem('ysaUser', JSON.stringify(user));
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('sidebarName').textContent = user.name;
+  document.getElementById('sidebarRole').textContent = user.role;
+  document.getElementById('sidebarAvatar').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('navRep').classList.toggle('hidden', user.role !== 'rep');
+  loadEventTypes();
+  showPage(user.role === 'rep' ? 'dashboard' : 'attendance');
+  if (!user.verified && user.role !== 'rep') {
+    document.getElementById('notVerifiedWarning').classList.remove('hidden');
+    document.getElementById('submitAttBtn').disabled = true;
+  }
+}
+
+function logout() {
+  currentUser = null;
+  sessionStorage.removeItem('ysaUser');
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+}
+
+function showPage(page) {
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.classList.remove('hidden');
+  document.querySelectorAll(`[data-page="${page}"]`).forEach(el => el.classList.add('active'));
+  ({dashboard:loadDashboard, approvals:loadApprovals, members:loadMembers, myRecords:loadMyRecords})[page]?.();
+}
+
+async function loadEventTypes() {
+  try {
+    const events = await api('GET','/events');
+    const sel = document.getElementById('attEventType');
+    sel.innerHTML = '<option value="">— Select event —</option>';
+    events.forEach(e => sel.innerHTML += `<option value="${e}">${e}</option>`);
+  } catch(e) {}
+}
+
+async function submitAttendance() {
+  const event_type = document.getElementById('attEventType').value;
+  const date = document.getElementById('attDate').value;
+  const notes = document.getElementById('attNotes').value;
+  if (!event_type || !date) { showAlert('attendanceAlert','Please select an event and date.'); return; }
+  try {
+    await api('POST','/attendance',{member_id:currentUser.member_id,event_type,date,notes});
+    showAlert('attendanceAlert','✅ Attendance recorded! Awaiting rep approval.','success');
+    document.getElementById('attEventType').value = '';
+    document.getElementById('attDate').value = '';
+    document.getElementById('attNotes').value = '';
+  } catch(e) { showAlert('attendanceAlert', e.message); }
+}
+
+async function loadMyRecords() {
+  try {
+    const records = await api('GET',`/attendance/${currentUser.member_id}`);
+    const tbody = document.getElementById('myRecordsBody');
+    if (!records.length) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div>No records yet.</div></td></tr>`; return; }
+    tbody.innerHTML = records.map(r => `<tr>
+      <td>${r.event_type}</td><td>${fmt(r.date)}</td>
+      <td style="color:var(--muted)">${r.notes||'—'}</td>
+      <td>${r.approved ? '<span class="badge badge-green">✓ Approved</span>' : '<span class="badge badge-orange">⏳ Pending</span>'}</td>
+    </tr>`).join('');
+  } catch(e) { toast('Failed to load records','error'); }
+}
+
+async function loadDashboard() {
+  try {
+    const s = await api('GET',`/stats?rep_id=${currentUser.member_id}`);
+    document.getElementById('statMembers').textContent = s.total_members;
+    document.getElementById('statVerified').textContent = s.verified_members;
+    document.getElementById('statApproved').textContent = s.approved_records;
+    document.getElementById('statPending').textContent = s.pending_records;
+    const badge = document.getElementById('pendingBadge');
+    s.pending_records > 0 ? (badge.textContent = s.pending_records, badge.classList.remove('hidden')) : badge.classList.add('hidden');
+    const tbody = document.getElementById('eventBreakdownBody');
+    const entries = Object.entries(s.event_breakdown || {});
+    tbody.innerHTML = entries.length
+      ? entries.map(([e,c]) => `<tr><td>${e}</td><td><strong>${c}</strong></td></tr>`).join('')
+      : `<tr><td colspan="2"><div class="empty-state" style="padding:24px"><div class="icon">📊</div>No approved records yet.</div></td></tr>`;
+  } catch(e) { toast('Failed to load stats','error'); }
+}
+
+async function loadApprovals() {
+  try {
+    const all = await api('GET',`/attendance/all?rep_id=${currentUser.member_id}`);
+    const pending = all.filter(r => !r.approved);
+    const tbody = document.getElementById('approvalsBody');
+    if (!pending.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">🎉</div>All caught up!</div></td></tr>`; return; }
+    tbody.innerHTML = pending.map(r => `<tr>
+      <td><strong>${r.member_name}</strong></td><td>${r.event_type}</td><td>${fmt(r.date)}</td>
+      <td style="color:var(--muted)">${r.notes||'—'}</td>
+      <td><div class="actions-row">
+        <button class="btn btn-sm btn-gold" onclick="approveRecord(${r.id})">✓ Approve</button>
+        <button class="btn btn-sm btn-danger" onclick="rejectRecord(${r.id})">✗</button>
+      </div></td>
+    </tr>`).join('');
+  } catch(e) { toast('Failed to load approvals','error'); }
+}
+
+async function approveRecord(id) {
+  try { await api('POST',`/attendance/${id}/approve`,{rep_id:currentUser.member_id}); toast('Approved ✓'); loadApprovals(); loadDashboard(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function rejectRecord(id) {
+  if (!confirm('Remove this record?')) return;
+  try { await api('POST',`/attendance/${id}/reject`,{rep_id:currentUser.member_id}); toast('Record removed.'); loadApprovals(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function loadMembers() {
+  try {
+    const members = await api('GET',`/members?rep_id=${currentUser.member_id}`);
+    const tbody = document.getElementById('membersBody');
+    if (!members.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">👥</div>No members.</div></td></tr>`; return; }
+    tbody.innerHTML = members.map(m => `<tr>
+      <td><strong>${m.name}</strong></td>
+      <td style="color:var(--muted)">${m.email}</td>
+      <td><span class="badge ${m.role==='rep'?'badge-purple':'badge-green'}">${m.role}</span></td>
+      <td>${m.verified ? '<span class="badge badge-green">✓ Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+      <td><div class="actions-row">
+        ${!m.verified ? `<button class="btn btn-sm btn-primary" onclick="verifyMember(${m.member_id})">Verify</button>` : ''}
+        ${m.member_id !== currentUser.member_id
+          ? m.role === 'rep'
+            ? `<button class="btn btn-sm btn-ghost" onclick="setRole(${m.member_id},'member')">Demote</button>`
+            : `<button class="btn btn-sm btn-ghost" onclick="setRole(${m.member_id},'rep')">Make Rep</button>`
+          : ''}
+      </div></td>
+    </tr>`).join('');
+  } catch(e) { toast('Failed to load members','error'); }
+}
+
+async function verifyMember(id) {
+  try { const r = await api('POST',`/members/${id}/verify`,{rep_id:currentUser.member_id}); toast(r.message); loadMembers(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function setRole(id, role) {
+  try { await api('POST',`/members/${id}/role`,{rep_id:currentUser.member_id,role}); toast(`Role updated to ${role}.`); loadMembers(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+function handleFileSelect(e) {
+  selectedFile = e.target.files[0];
+  document.getElementById('selectedFileName').textContent = selectedFile ? `📄 ${selectedFile.name}` : '';
+  document.getElementById('uploadBtn').disabled = !selectedFile;
+}
+
+async function uploadExcel() {
+  if (!selectedFile) return;
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+  formData.append('rep_id', currentUser.member_id);
+  const btn = document.getElementById('uploadBtn');
+  try {
+    btn.disabled = true; btn.textContent = '⏳ Importing...';
+    const res = await api('POST','/import', formData, true);
+    showAlert('importAlert', `✅ ${res.message}`, 'success');
+    selectedFile = null;
+    document.getElementById('selectedFileName').textContent = '';
+    document.getElementById('excelFile').value = '';
+  } catch(e) { showAlert('importAlert', e.message); }
+  finally { btn.textContent = '📥 Import Data'; btn.disabled = true; }
+}
+
+function exportExcel() {
+  const a = document.createElement('a');
+  a.href = `${API}/export?rep_id=${currentUser.member_id}`;
+  a.click();
+  toast('Downloading Excel report...');
+}
+
+// Restore session on page reload
+const saved = sessionStorage.getItem('ysaUser');
+if (saved) { try { startSession(JSON.parse(saved)); } catch(e) {} }
+</script>
+</body>
+</html>
